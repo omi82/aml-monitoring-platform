@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.api.routers.api import api_router
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.routers.ai_chat import router as ai_chat_router
 
 app = FastAPI(
     title="Enterprise AI-Powered AML Investigation Platform",
@@ -23,6 +24,10 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+app.include_router(
+    ai_chat_router,
+    prefix="/api/v1",
+)
 # Register all API 
 
 @app.get("/", tags=["Root"])

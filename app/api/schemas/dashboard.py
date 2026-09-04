@@ -10,6 +10,9 @@ class DashboardSummaryResponse(BaseModel):
     open_cases: int
     critical_cases: int
 
+    total_customers: int
+    average_risk: float
+
 
 class ChartResponse(BaseModel):
 

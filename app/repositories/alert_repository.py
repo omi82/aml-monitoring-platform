@@ -1,10 +1,8 @@
+from sqlalchemy import asc, desc
 from sqlalchemy.dialects.postgresql import insert
 
-from app.core.filters import apply_filters
-from app.core.sorting import apply_sorting
 from app.models.alert import Alert
 from app.repositories.base_repository import BaseRepository
-from sqlalchemy import asc, desc
 
 
 class AlertRepository(BaseRepository):
@@ -12,37 +10,63 @@ class AlertRepository(BaseRepository):
     def __init__(self, db):
         super().__init__(db, Alert)
 
-    def save_alerts(self, alerts_data):
+    def bulk_create(self, alerts_data):
 
         if not alerts_data:
             return 0
 
-        stmt = (
-            insert(Alert)
-            .values(alerts_data)
-            .on_conflict_do_nothing(
-                index_elements=[
-                    "transaction_id",
-                    "rule_name",
-                ]
+        batch_size = 5000
+        inserted_total = 0
+
+        for i in range(0, len(alerts_data), batch_size):
+
+            batch = alerts_data[i:i + batch_size]
+
+            stmt = (
+                insert(Alert)
+                .values(batch)
+                .on_conflict_do_nothing(
+                    index_elements=[
+                        "transaction_id",
+                        "rule_name",
+                    ]
+                )
+                .returning(Alert.alert_key)
             )
-            .returning(Alert.alert_key)
-        )
 
-        result = self.db.execute(stmt)
+            result = self.db.execute(stmt)
 
-        inserted = len(result.fetchall())
+            inserted_total += len(result.fetchall())
 
-        self.db.commit()
+            self.db.commit()
 
-        return inserted
+        return inserted_total
+
+    def save_alerts(self, alerts_data):
+
+        return self.bulk_create(alerts_data)
 
     def get_open_alerts(self):
 
         return (
             self.db.query(Alert)
-            .filter(Alert.status == "Open")
+            .filter(
+                Alert.status == "Open"
+            )
             .all()
+        )
+
+    def get_by_alert_key(
+        self,
+        alert_key: int,
+    ):
+
+        return (
+            self.db.query(Alert)
+            .filter(
+                Alert.alert_key == alert_key
+            )
+            .first()
         )
 
     def get_all(
@@ -83,10 +107,13 @@ class AlertRepository(BaseRepository):
         )
 
         if filters.sort_order == "asc":
+
             query = query.order_by(
                 asc(sort_column)
             )
+
         else:
+
             query = query.order_by(
                 desc(sort_column)
             )
@@ -109,6 +136,8 @@ class AlertRepository(BaseRepository):
 
         return (
             self.db.query(Alert)
-            .filter(Alert.case_id == case_id)
+            .filter(
+                Alert.case_id == case_id
+            )
             .all()
         )

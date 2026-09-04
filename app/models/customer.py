@@ -12,6 +12,7 @@ from app.models.base_model import TimestampMixin
 
 
 class Customer(TimestampMixin, Base):
+
     __tablename__ = "dim_customer"
 
     customer_key: Mapped[int] = mapped_column(
@@ -63,5 +64,10 @@ class Customer(TimestampMixin, Base):
 
     transactions = relationship(
         "Transaction",
+        back_populates="customer",
+    )
+
+    cases = relationship(
+        "Case",
         back_populates="customer",
     )

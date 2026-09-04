@@ -1,4 +1,4 @@
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.models.alert import Alert
@@ -20,46 +20,106 @@ class DashboardRepository:
     def get_total_transactions(self):
 
         return (
-            self.db.query(func.count(Transaction.transaction_key))
+            self.db.query(
+                func.count(
+                    Transaction.transaction_key
+                )
+            )
             .scalar()
         )
+
 
     def get_total_alerts(self):
 
         return (
-            self.db.query(func.count(Alert.alert_key))
+            self.db.query(
+                func.count(Alert.alert_key)
+            )
             .scalar()
         )
+
 
     def get_open_alerts(self):
 
         return (
-            self.db.query(func.count(Alert.alert_key))
-            .filter(Alert.status == "Open")
+            self.db.query(
+                func.count(Alert.alert_key)
+            )
+            .filter(
+                Alert.status == "Open"
+            )
             .scalar()
         )
+
 
     def get_total_cases(self):
 
         return (
-            self.db.query(func.count(Case.case_id))
+            self.db.query(
+                func.count(Case.case_id)
+            )
             .scalar()
         )
+
 
     def get_open_cases(self):
 
         return (
-            self.db.query(func.count(Case.case_id))
-            .filter(Case.status == "Open")
+            self.db.query(
+                func.count(Case.case_id)
+            )
+            .filter(
+                Case.status == "Open"
+            )
             .scalar()
         )
+
 
     def get_critical_cases(self):
 
         return (
-            self.db.query(func.count(Case.case_id))
-            .filter(Case.priority == "Critical")
+            self.db.query(
+                func.count(Case.case_id)
+            )
+            .filter(
+                Case.priority == "Critical"
+            )
             .scalar()
+        )
+
+
+    def get_total_customers(self):
+
+        return (
+            self.db.query(
+                func.count(Customer.customer_key)
+            )
+            .scalar()
+        )
+
+
+    def get_average_risk(self):
+
+        risk_score = case(
+            (Customer.risk_category == "LOW", 1),
+            (Customer.risk_category == "MEDIUM", 2),
+            (Customer.risk_category == "HIGH", 3),
+            else_=0,
+        )
+
+        average = (
+            self.db.query(
+                func.avg(risk_score)
+            )
+            .scalar()
+        )
+
+        if average is None:
+            return 0
+
+        return round(
+            float(average),
+            2,
         )
 
     # -----------------------------

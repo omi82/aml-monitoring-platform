@@ -27,20 +27,39 @@ class CaseRepository:
 
         query = self.db.query(Case)
 
+        # ---------------------------------------------
+        # Filters
+        # ---------------------------------------------
+
         if filters.status:
+
             query = query.filter(
                 Case.status == filters.status
             )
 
         if filters.priority:
+
             query = query.filter(
                 Case.priority == filters.priority
             )
 
         if filters.investigator:
+
             query = query.filter(
                 Case.investigator == filters.investigator
             )
+
+
+        # ---------------------------------------------
+        # Total Count
+        # ---------------------------------------------
+
+        total = query.count()
+
+
+        # ---------------------------------------------
+        # Sorting
+        # ---------------------------------------------
 
         sort_column = getattr(
             Case,
@@ -48,20 +67,45 @@ class CaseRepository:
         )
 
         if filters.sort_order == "asc":
+
             query = query.order_by(
                 asc(sort_column)
             )
+
         else:
+
             query = query.order_by(
                 desc(sort_column)
             )
 
-        return (
+
+        # ---------------------------------------------
+        # Pagination
+        # ---------------------------------------------
+
+        offset = (
+            filters.page - 1
+        ) * filters.size
+
+
+        items = (
             query
-            .offset((filters.page - 1) * filters.size)
+            .offset(offset)
             .limit(filters.size)
             .all()
         )
+
+
+        # ---------------------------------------------
+        # Response
+        # ---------------------------------------------
+
+        return {
+            "items": items,
+            "total": total,
+            "page": filters.page,
+            "size": filters.size,
+        }
 
     def update(self, case):
 
@@ -144,3 +188,34 @@ class CaseRepository:
         self.db.refresh(case)
 
         return case
+
+
+    def get_by_alert_keys(
+        self,
+        alert_keys: list[int],
+    ):
+
+        if not alert_keys:
+            return []
+
+        return (
+            self.db.query(Case)
+            .filter(
+                Case.alert_key.in_(alert_keys)
+            )
+            .all()
+        )
+
+
+    def get_by_customer(
+        self,
+        customer_id: str,
+    ):
+
+        return (
+            self.db.query(Case)
+            .filter(
+                Case.customer_id == customer_id
+            )
+            .all()
+        )

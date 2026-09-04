@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db
-from app.api.schemas.case import CaseResponse
+from app.api.schemas.case import CaseResponse, CaseListResponse
 from app.core.permissions import require_roles
 from app.services.audit_service import AuditService
 from app.services.case_service import CaseService
@@ -17,6 +17,10 @@ from app.services.workflow_service import WorkflowService
 from app.auth.dependencies import get_current_user
 from fastapi import Query
 from app.api.schemas.case_filter import CaseFilter
+from app.repositories.alert_repository import AlertRepository
+from app.models.case_timeline import CaseTimeline
+from app.repositories.timeline_repository import TimelineRepository
+from app.repositories.customer_repository import CustomerRepository
 
 router = APIRouter(
     prefix="/cases",
@@ -26,7 +30,7 @@ router = APIRouter(
 
 @router.get(
     "",
-    response_model=List[CaseResponse],
+    response_model=CaseListResponse,
 )
 def get_cases(
     page: int = Query(1),
@@ -91,6 +95,224 @@ def get_open_cases(
     )
 
     return service.get_open_cases()
+
+
+@router.post(
+    "/from-alert/{alert_key}",
+    response_model=CaseResponse,
+)
+def create_case_from_alert(
+    alert_key: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(
+        require_roles(
+            "Admin",
+            "Investigator",
+        )
+    ),
+):
+
+    # --------------------------------------------------
+    # Get Alert
+    # --------------------------------------------------
+
+    alert_repo = AlertRepository(db)
+
+    alert = alert_repo.get_by_alert_key(
+        alert_key
+    )
+
+    if alert is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Alert not found",
+        )
+
+
+    # --------------------------------------------------
+    # Case Service
+    # --------------------------------------------------
+
+    service = CaseService(db)
+
+
+    # --------------------------------------------------
+    # Check Existing Case
+    # --------------------------------------------------
+
+    existing_case = service.case_exists(
+        alert_key
+    )
+
+
+    # --------------------------------------------------
+    # Create Case
+    # --------------------------------------------------
+
+    case = service.create_case(
+        alert
+    )
+
+
+    # --------------------------------------------------
+    # Create Timeline Only For New Case
+    # --------------------------------------------------
+
+    if not existing_case:
+
+        timeline_repo = TimelineRepository(
+            db
+        )
+
+        timeline = CaseTimeline(
+
+            case_id=case.case_id,
+
+            action="CASE_CREATED",
+
+            performed_by=current_user.username,
+
+            old_value=None,
+
+            new_value="Open",
+
+            comments=(
+                f"Investigation case created "
+                f"from alert {alert_key}"
+            ),
+
+        )
+
+        timeline_repo.create(
+            timeline
+        )
+
+
+    # --------------------------------------------------
+    # Audit Log
+    # --------------------------------------------------
+
+    AuditService(db).log_action(
+
+        current_user=current_user,
+
+        action="CREATE",
+
+        entity="Case",
+
+        entity_id=str(case.case_id),
+
+        details=(
+            f"Created case from alert "
+            f"{alert_key}"
+        ),
+
+    )
+
+
+    return case
+
+    # --------------------------------------------------
+    # Get Alert
+    # --------------------------------------------------
+
+    alert_repo = AlertRepository(db)
+
+    alert = alert_repo.get_by_alert_key(
+        alert_key
+    )
+
+    if alert is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Alert not found",
+        )
+
+
+    # --------------------------------------------------
+    # Create Case
+    # --------------------------------------------------
+
+    service = CaseService(db)
+
+    case = service.create_case(
+        alert
+    )
+
+
+    # --------------------------------------------------
+    # Audit Log
+    # --------------------------------------------------
+
+    AuditService(db).log_action(
+
+        current_user=current_user,
+
+        action="CREATE",
+
+        entity="Case",
+
+        entity_id=str(case.case_id),
+
+        details=(
+            f"Created case from alert "
+            f"{alert_key}"
+        ),
+
+    )
+
+
+    return case
+
+
+@router.post(
+    "/from-customer/{customer_id}",
+    response_model=CaseResponse,
+)
+def create_case_from_customer(
+    customer_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(
+        require_roles(
+            "Admin",
+            "Investigator",
+        )
+    ),
+):
+
+    customer_repo = CustomerRepository(db)
+
+    customer = customer_repo.get_by_id(
+        customer_id
+    )
+
+    if customer is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found",
+        )
+
+    service = CaseService(db)
+
+    case = service.create_case_from_customer(
+        customer
+    )
+
+    AuditService(db).log_action(
+        current_user=current_user,
+        action="CREATE",
+        entity="Case",
+        entity_id=str(case.case_id),
+        details=(
+            f"Investigation case created "
+            f"for customer {customer_id}"
+        ),
+    )
+
+    return case
 
 
 @router.get(

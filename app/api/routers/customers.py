@@ -1,26 +1,23 @@
-from typing import List
-from uuid import UUID
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db
-from app.api.schemas.customer import CustomerResponse
-from app.services.audit_service import AuditService
-from app.services.audit_service import AuditService
-from app.services.customer_service import CustomerService
-from app.auth.dependencies import get_current_user
-from app.core.permissions import require_roles
-from fastapi import Query
-
+from app.api.schemas.customer import (
+    CustomerListResponse,
+    CustomerResponse,
+)
 from app.api.schemas.customer_filter import CustomerFilter
 from app.api.schemas.customer_overview import (
     CustomerOverviewResponse,
 )
-
+from app.auth.dependencies import get_current_user
+from app.core.permissions import require_roles
+from app.services.audit_service import AuditService
 from app.services.customer_overview_service import (
     CustomerOverviewService,
 )
+from app.services.customer_service import CustomerService
+
 
 router = APIRouter(
     prefix="/customers",
@@ -30,11 +27,11 @@ router = APIRouter(
 
 @router.get(
     "",
-    response_model=List[CustomerResponse],
+    response_model=CustomerListResponse,
 )
 def get_customers(
-    page: int = Query(1),
-    size: int = Query(20),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
     country: str | None = None,
     risk_level: str | None = None,
     customer_type: str | None = None,
@@ -71,18 +68,23 @@ def get_customers(
 def get_customer(
     customer_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(require_roles(
-        "Admin",
-        "Investigator",
-        "Compliance Officer",
-    )),
+    current_user=Depends(
+        require_roles(
+            "Admin",
+            "Investigator",
+            "Compliance Officer",
+        )
+    ),
 ):
 
     service = CustomerService(db)
 
-    customer = service.get_customer_by_id(customer_id)
+    customer = service.get_customer_by_id(
+        customer_id
+    )
 
     if customer is None:
+
         raise HTTPException(
             status_code=404,
             detail="Customer not found",
@@ -98,15 +100,27 @@ def get_customer(
 
     return customer
 
+
 @router.get(
     "/{customer_id}/overview",
     response_model=CustomerOverviewResponse,
 )
 def get_customer_overview(
-    customer_id: UUID,
+    customer_id: str,
     db: Session = Depends(get_db),
 ):
 
     service = CustomerOverviewService(db)
 
-    return service.get_overview(customer_id)
+    overview = service.get_overview(
+        customer_id
+    )
+
+    if overview is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found",
+        )
+
+    return overview

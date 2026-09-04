@@ -18,20 +18,33 @@ class Case(Base):
         default=uuid.uuid4,
     )
 
-    alert_key: Mapped[int] = mapped_column(
+    # --------------------------------------------------
+    # Customer
+    # --------------------------------------------------
+
+    customer_id: Mapped[str | None] = mapped_column(
+        ForeignKey("dim_customer.customer_id"),
+        nullable=True,
+        index=True,
+    )
+
+    # --------------------------------------------------
+    # Alert
+    # --------------------------------------------------
+
+    alert_key: Mapped[int | None] = mapped_column(
         ForeignKey("fact_alert.alert_key"),
         unique=True,
-        nullable=False,
+        nullable=True,
     )
+
+    # --------------------------------------------------
+    # Investigation
+    # --------------------------------------------------
 
     investigator: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
-    )
-
-    status: Mapped[str] = mapped_column(
-        String(30),
-        default="Open",
     )
 
     priority: Mapped[str] = mapped_column(
@@ -39,10 +52,20 @@ class Case(Base):
         nullable=False,
     )
 
+    status: Mapped[str] = mapped_column(
+        String(30),
+        default="Open",
+        nullable=False,
+    )
+
     comments: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
+
+    # --------------------------------------------------
+    # Audit / Assignment
+    # --------------------------------------------------
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -64,11 +87,19 @@ class Case(Base):
         nullable=True,
     )
 
+    # --------------------------------------------------
+    # Relationships
+    # --------------------------------------------------
+
+    customer = relationship(
+        "Customer",
+        back_populates="cases",
+    )
+
     alert = relationship(
         "Alert",
         back_populates="case",
     )
-
 
     timeline = relationship(
         "CaseTimeline",

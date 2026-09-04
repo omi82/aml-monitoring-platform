@@ -7,16 +7,22 @@ from sqlalchemy.orm import Session
 from app.core.constants import ETL_BATCH_SIZE
 from app.utils.logger import get_logger
 
+
 logger = get_logger(__name__)
 
 
 class BaseLoader:
     """
     Generic SQLAlchemy Data Loader.
+
+    Loads DataFrame records in batches without creating
+    the entire dataset as SQLAlchemy objects in memory.
     """
 
     def __init__(self, db: Session):
+
         self.db = db
+
 
     def load_dataframe(
         self,
@@ -24,21 +30,19 @@ class BaseLoader:
         dataframe: DataFrame,
     ) -> None:
 
-        records = [
-            model(**row)
-            for row in dataframe.to_dict(
-                orient="records"
-            )
-        ]
-
-        total = len(records)
+        total = len(dataframe)
 
         if total == 0:
-            logger.warning("No records found.")
+
+            logger.warning(
+                "No records found."
+            )
 
             return
 
+
         start_time = perf_counter()
+
 
         try:
 
@@ -48,27 +52,57 @@ class BaseLoader:
                 ETL_BATCH_SIZE,
             ):
 
-                batch = records[
-                    start:start + ETL_BATCH_SIZE
-                ]
-
-                self.db.bulk_save_objects(batch)
-
-                self.db.commit()
-
-                logger.info(
-                    "Loaded %s/%s records",
-                    min(start + ETL_BATCH_SIZE, total),
+                end = min(
+                    start + ETL_BATCH_SIZE,
                     total,
                 )
 
-            elapsed = perf_counter() - start_time
+
+                # Convert only the current batch
+                # into dictionaries.
+                batch_dataframe = dataframe.iloc[
+                    start:end
+                ]
+
+
+                records = (
+                    batch_dataframe
+                    .to_dict(
+                        orient="records"
+                    )
+                )
+
+
+                # Use bulk_insert_mappings instead
+                # of creating SQLAlchemy objects.
+                self.db.bulk_insert_mappings(
+                    model,
+                    records,
+                )
+
+
+                self.db.commit()
+
+
+                logger.info(
+                    "Loaded %s/%s records",
+                    end,
+                    total,
+                )
+
+
+            elapsed = (
+                perf_counter()
+                - start_time
+            )
+
 
             logger.info(
                 "Finished loading %s rows in %.2f seconds.",
                 total,
                 elapsed,
             )
+
 
         except SQLAlchemyError as error:
 

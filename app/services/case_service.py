@@ -95,3 +95,43 @@ class CaseService:
             investigator,
             assigned_by,
         )
+
+
+    def create_case_from_customer(
+        self,
+        customer,
+    ):
+        """
+        Create an investigation case directly
+        from a customer.
+        """
+
+        existing_cases = (
+            self.repository.get_by_customer(
+                customer.customer_id
+            )
+        )
+
+        if existing_cases:
+            return existing_cases[0]
+
+        if customer.risk_category == "HIGH":
+
+            priority = "High"
+
+        elif customer.risk_category == "MEDIUM":
+
+            priority = "Medium"
+
+        else:
+
+            priority = "Low"
+
+        case = Case(
+            customer_id=customer.customer_id,
+            alert_key=None,
+            priority=priority,
+            status="Open",
+        )
+
+        return self.repository.create(case)

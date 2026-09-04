@@ -10,12 +10,29 @@ class DashboardService:
     def get_summary(self):
 
         return {
-            "total_transactions": self.repository.get_total_transactions(),
-            "total_alerts": self.repository.get_total_alerts(),
-            "open_alerts": self.repository.get_open_alerts(),
-            "total_cases": self.repository.get_total_cases(),
-            "open_cases": self.repository.get_open_cases(),
-            "critical_cases": self.repository.get_critical_cases(),
+            "total_transactions":
+                self.repository.get_total_transactions(),
+
+            "total_alerts":
+                self.repository.get_total_alerts(),
+
+            "open_alerts":
+                self.repository.get_open_alerts(),
+
+            "total_cases":
+                self.repository.get_total_cases(),
+
+            "open_cases":
+                self.repository.get_open_cases(),
+
+            "critical_cases":
+                self.repository.get_critical_cases(),
+
+            "total_customers":
+                self.repository.get_total_customers(),
+
+            "average_risk":
+                self.repository.get_average_risk(),
         }
 
     def get_recent_alerts(self):

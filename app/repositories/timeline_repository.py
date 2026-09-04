@@ -33,3 +33,22 @@ class TimelineRepository:
             .order_by(CaseTimeline.created_at.desc())
             .all()
         )
+
+    def get_by_case_ids(
+        self,
+        case_ids,
+    ):
+
+        if not case_ids:
+            return []
+
+        return (
+            self.db.query(CaseTimeline)
+            .filter(
+                CaseTimeline.case_id.in_(case_ids)
+            )
+            .order_by(
+                CaseTimeline.created_at.asc()
+            )
+            .all()
+        )

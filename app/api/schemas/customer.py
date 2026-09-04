@@ -13,5 +13,16 @@ class CustomerResponse(BaseModel):
     risk_category: str
 
     model_config = {
-        "from_attributes": True
+        "from_attributes": True,
     }
+
+
+class CustomerListResponse(BaseModel):
+
+    items: list[CustomerResponse]
+
+    total: int
+
+    page: int
+
+    size: int
