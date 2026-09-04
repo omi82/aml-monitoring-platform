@@ -45,3 +45,12 @@ migrations/__pycache__/
 
 # PyCharm
 .idea/
+
+
+# Environment / Secrets
+.env.*
+!.env.example
+
+# Generated datasets
+data/raw/
+data/processed/
