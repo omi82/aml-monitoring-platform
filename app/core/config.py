@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     # Logging
     log_level: str
 
+    secret_key: str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
